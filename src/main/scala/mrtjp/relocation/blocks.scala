@@ -14,8 +14,8 @@ import net.minecraft.block.SoundType
 import net.minecraft.block.material.Material
 import net.minecraft.block.state.IBlockState
 import net.minecraft.entity.{Entity, MoverType}
+import net.minecraft.util.math.{AxisAlignedBB, BlockPos, RayTraceResult, Vec3d}
 import net.minecraft.util.{EnumBlockRenderType, ResourceLocation}
-import net.minecraft.util.math.AxisAlignedBB
 import net.minecraft.world.World
 
 import scala.collection.JavaConversions._
@@ -28,9 +28,14 @@ class BlockMovingRow extends MultiTileBlock(Material.IRON) {
   addTile(classOf[TileMovingRow], 0)
 
   override def getRenderType(state: IBlockState): EnumBlockRenderType = EnumBlockRenderType.INVISIBLE
+
+  override def collisionRayTrace(blockState: IBlockState, worldIn: World, pos: BlockPos, start: Vec3d, end: Vec3d): RayTraceResult =
+    if (MovementManager2.isMoving(worldIn, pos)) null else super.collisionRayTrace(blockState, worldIn, pos, start, end)
 }
 
 object TileMovingRow {
+  var noBounds = false
+
   def setBlockForRow(w: World, r: BlockRow) {
     w.setBlockState(r.pos, RelocationMod.blockMovingRow.getDefaultState, 3)
   }
@@ -59,12 +64,14 @@ class TileMovingRow extends MTBlockTile {
   override def getBlock: BlockMovingRow = RelocationMod.blockMovingRow
 
   override def getBlockBounds: Cuboid6 = {
-    val s = MovementManager2.getEnclosedStructure(world, pos)
-    if (s != null) {
-      val r = s.rows.find(_.contains(pos)).get
-      TileMovingRow.getBoxFor(world, r, s.progress)
+    if (TileMovingRow.noBounds) new Cuboid6()
+    else {
+      val s = MovementManager2.getEnclosedStructure(world, pos)
+      if (s != null) {
+        val r = s.rows.find(_.contains(pos)).get
+        TileMovingRow.getBoxFor(world, r, s.progress)
+      } else Cuboid6.full
     }
-    else Cuboid6.full
   }
 
   override def getCollisionBounds: Cuboid6 = getBlockBounds
